@@ -14,6 +14,7 @@ from .lookup_user.tool import lookup_user
 from .policy.tool import search_company_policy
 from .search_kb.tool import search_kb
 from .search_device_info.tool import search_device_info
+from .check_warranty.tool import check_warranty
 
 
 # These names are part of the fixed evaluation contract. Keep built-in names
@@ -30,6 +31,7 @@ TOOL_FUNCTIONS = {
     "format_incident_report": format_incident_report,
     "policy": search_company_policy,
     "create_ticket": create_ticket,
+    "check_warranty": check_warranty,
 }
 
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from typing import Any
 
 from providers.base import ModelResponse, ToolCall
@@ -73,7 +74,7 @@ class GeminiProvider:
         self,
         *,
         api_key_env: str = "GEMINI_API_KEY",
-        default_model: str = "gemini-3.5-flash",
+        default_model: str = "gemini-3.6-flash",
     ) -> None:
         self.api_key_env = api_key_env
         self.default_model = default_model
@@ -104,13 +105,56 @@ class GeminiProvider:
             config_kwargs["system_instruction"] = system_instruction
         if declarations:
             config_kwargs["tools"] = [types.Tool(function_declarations=declarations)]
+            if tool_choice == "required":
+                config_kwargs["tool_config"] = types.ToolConfig(
+                    function_calling_config=types.FunctionCallingConfig(
+                        mode=types.FunctionCallingConfigMode.ANY
+                    )
+                )
+            elif tool_choice == "none":
+                config_kwargs["tool_config"] = types.ToolConfig(
+                    function_calling_config=types.FunctionCallingConfig(
+                        mode=types.FunctionCallingConfigMode.NONE
+                    )
+                )
+            elif tool_choice == "auto":
+                config_kwargs["tool_config"] = types.ToolConfig(
+                    function_calling_config=types.FunctionCallingConfig(
+                        mode=types.FunctionCallingConfigMode.AUTO
+                    )
+                )
+            elif isinstance(tool_choice, dict) and "function" in tool_choice:
+                func_name = tool_choice["function"].get("name")
+                config_kwargs["tool_config"] = types.ToolConfig(
+                    function_calling_config=types.FunctionCallingConfig(
+                        mode=types.FunctionCallingConfigMode.ANY,
+                        allowed_function_names=[func_name] if func_name else None,
+                    )
+                )
 
         client = genai.Client(api_key=api_key)
-        resp = client.models.generate_content(
-            model=model or self.default_model,
-            contents=contents,
-            config=types.GenerateContentConfig(**config_kwargs),
-        )
+        target_model = model or self.default_model
+        gen_config = types.GenerateContentConfig(**config_kwargs)
+
+        last_exc: Exception | None = None
+        resp = None
+        for attempt in range(5):
+            try:
+                resp = client.models.generate_content(
+                    model=target_model,
+                    contents=contents,
+                    config=gen_config,
+                )
+                break
+            except Exception as exc:
+                last_exc = exc
+                err_str = str(exc)
+                if any(code in err_str for code in ["503", "429", "UNAVAILABLE", "RESOURCE_EXHAUSTED", "500", "InternalServerError"]):
+                    time.sleep(2 ** attempt + 1)
+                    continue
+                raise
+        if resp is None and last_exc:
+            raise last_exc
 
         text_parts: list[str] = []
         calls: list[ToolCall] = []

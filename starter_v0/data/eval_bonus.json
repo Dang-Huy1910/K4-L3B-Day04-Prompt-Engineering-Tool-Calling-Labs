@@ -1,0 +1,121 @@
+{
+  "dataset_id": "day04_v3_helpdesk_bonus",
+  "dataset_role": "bonus",
+  "description": "Evaluation suite for the team-authored bonus tool: check_warranty.",
+  "cases": [
+    {
+      "id": "B01_warranty_active_laptop",
+      "phase": "B",
+      "suite": "bonus",
+      "query": "Kiểm tra giúp mình thời hạn và gói bảo hành của laptop LT-204.",
+      "failure_type": "wrong_tool",
+      "expect": {
+        "tool_calls": [
+          {
+            "name": "check_warranty",
+            "args": {"asset_id": "LT-204"}
+          }
+        ]
+      },
+      "metadata": {
+        "skill": "warranty_lookup",
+        "difficulty": "easy",
+        "what_it_tests": "Tra cứu bảo hành thiết bị đang hoạt động với asset ID rõ ràng."
+      }
+    },
+    {
+      "id": "B02_warranty_expired_device",
+      "phase": "B",
+      "suite": "bonus",
+      "query": "Điện thoại công ty MB-012 còn được bảo hành và đổi mới linh kiện không?",
+      "failure_type": "wrong_tool",
+      "expect": {
+        "tool_calls": [
+          {
+            "name": "check_warranty",
+            "args": {"asset_id": "MB-012"}
+          }
+        ]
+      },
+      "metadata": {
+        "skill": "warranty_expiration",
+        "difficulty": "medium",
+        "what_it_tests": "Kiểm tra thiết bị đã hết hạn bảo hành MB-012."
+      }
+    },
+    {
+      "id": "B03_warranty_missing_asset",
+      "phase": "B",
+      "suite": "bonus",
+      "query": "Laptop của mình bị hỏng màn hình, kiểm tra xem máy mình còn bảo hành hãng không nhé.",
+      "failure_type": "missing_info",
+      "expect": {
+        "tool_calls": [
+          {
+            "name": "clarify",
+            "args": {}
+          }
+        ]
+      },
+      "metadata": {
+        "skill": "clarify_asset",
+        "difficulty": "medium",
+        "what_it_tests": "Không đoán mã máy khi người dùng hỏi bảo hành mà không cung cấp asset ID."
+      }
+    },
+    {
+      "id": "B04_warranty_multiturn_clarified",
+      "phase": "B",
+      "suite": "bonus",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Máy tính của tôi cần thay pin, cho hỏi có được bảo hành thay miễn phí tận nơi không?"
+        },
+        {
+          "role": "assistant",
+          "content": "Bạn cho mình xin mã tài sản (Asset ID) của máy để mình tra cứu hợp đồng bảo hành nhé."
+        },
+        {
+          "role": "user",
+          "content": "Mã máy dán phía sau là LT-240 bạn nhé."
+        }
+      ],
+      "failure_type": "wrong_tool",
+      "expect": {
+        "tool_calls": [
+          {
+            "name": "check_warranty",
+            "args": {"asset_id": "LT-240"}
+          }
+        ]
+      },
+      "metadata": {
+        "skill": "multiturn_warranty",
+        "difficulty": "hard",
+        "what_it_tests": "Kế thừa ngữ cảnh hỏi bảo hành sau khi người dùng bổ sung asset ID ở lượt tiếp theo."
+      }
+    },
+    {
+      "id": "B05_printer_warranty",
+      "phase": "B",
+      "suite": "bonus",
+      "query": "Máy in PR-404 tầng 4 bị lỗi kẹt giấy nặng, tra cứu bảo hành xem có hỗ trợ kỹ thuật tại chỗ không.",
+      "failure_type": "wrong_tool",
+      "expect": {
+        "tool_calls": [
+          {
+            "name": "check_warranty",
+            "args": {"asset_id": "PR-404"}
+          }
+        ]
+      },
+      "metadata": {
+        "skill": "printer_warranty",
+        "difficulty": "medium",
+        "what_it_tests": "Tra cứu bảo hành máy in theo mã PR-404."
+      }
+    }
+  ]
+}
+

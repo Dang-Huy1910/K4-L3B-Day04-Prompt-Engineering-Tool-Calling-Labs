@@ -1,0 +1,106 @@
+{
+  "snapshot_at": "2026-09-15T00:00:00+07:00",
+  "as_of_date": "2026-09-15",
+  "warranties": [
+    {
+      "asset_id": "LT-204",
+      "model": "ThinkPad T14 Gen 4",
+      "tier": "Premier Support",
+      "provider": "Lenovo Onsite Care",
+      "start_date": "2024-02-12",
+      "end_date": "2027-02-11",
+      "on_site_service": true,
+      "rma_eligible": true,
+      "accidental_damage": true
+    },
+    {
+      "asset_id": "LT-240",
+      "model": "Dell Latitude 7440",
+      "tier": "ProSupport Plus",
+      "provider": "Dell Next Business Day",
+      "start_date": "2024-05-08",
+      "end_date": "2027-05-07",
+      "on_site_service": true,
+      "rma_eligible": true,
+      "accidental_damage": true
+    },
+    {
+      "asset_id": "DT-031",
+      "model": "HP EliteDesk 800 G9",
+      "tier": "Care Pack Next Business Day",
+      "provider": "HP Commercial Care",
+      "start_date": "2023-11-20",
+      "end_date": "2026-11-19",
+      "on_site_service": true,
+      "rma_eligible": true,
+      "accidental_damage": false
+    },
+    {
+      "asset_id": "LT-318",
+      "model": "MacBook Pro 14-inch M3",
+      "tier": "AppleCare+ for Enterprise",
+      "provider": "Apple Direct Support",
+      "start_date": "2024-01-18",
+      "end_date": "2027-01-17",
+      "on_site_service": true,
+      "rma_eligible": true,
+      "accidental_damage": true
+    },
+    {
+      "asset_id": "LT-411",
+      "model": "ThinkPad P1 Gen 6",
+      "tier": "Premier Support Plus",
+      "provider": "Lenovo Enterprise Care",
+      "start_date": "2024-07-03",
+      "end_date": "2027-07-02",
+      "on_site_service": true,
+      "rma_eligible": true,
+      "accidental_damage": true
+    },
+    {
+      "asset_id": "DT-087",
+      "model": "OptiPlex 7010 Plus",
+      "tier": "Basic Onsite Service",
+      "provider": "Dell Basic Care",
+      "start_date": "2025-01-06",
+      "end_date": "2028-01-05",
+      "on_site_service": true,
+      "rma_eligible": false,
+      "accidental_damage": false
+    },
+    {
+      "asset_id": "MB-012",
+      "model": "iPhone 15",
+      "tier": "Standard Limited Warranty",
+      "provider": "Apple Support",
+      "start_date": "2024-03-22",
+      "end_date": "2026-03-21",
+      "on_site_service": false,
+      "rma_eligible": false,
+      "accidental_damage": false
+    },
+    {
+      "asset_id": "PR-404",
+      "model": "Color LaserJet Enterprise M555dn",
+      "tier": "Standard Warranty",
+      "provider": "HP Commercial Care",
+      "start_date": "2023-08-14",
+      "end_date": "2026-08-13",
+      "on_site_service": false,
+      "rma_eligible": false,
+      "accidental_damage": false
+    },
+    {
+      "asset_id": "RM-501",
+      "model": "Rally Bar",
+      "tier": "Logitech Select",
+      "provider": "Logitech Enterprise Care",
+      "start_date": "2024-09-01",
+      "end_date": "2027-08-31",
+      "on_site_service": true,
+      "rma_eligible": true,
+      "accidental_damage": false
+    }
+  ]
+}
+
