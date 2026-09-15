@@ -2,7 +2,13 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 from google.genai import types
-from providers.gemini_provider import GeminiProvider
+from providers.gemini_provider import GeminiProvider, _is_retryable_provider_error
+
+
+def test_daily_quota_error_is_not_retried():
+    error = RuntimeError("429 RESOURCE_EXHAUSTED quota GenerateRequestsPerDayPerProjectPerModel")
+    assert _is_retryable_provider_error(error) is False
+    assert _is_retryable_provider_error(RuntimeError("503 UNAVAILABLE")) is True
 
 
 def test_gemini_provider_tool_choice_required():
@@ -88,4 +94,3 @@ def test_gemini_provider_tool_choice_none():
         call_kwargs = mock_client.models.generate_content.call_args.kwargs
         config = call_kwargs["config"]
         assert config.tool_config.function_calling_config.mode == types.FunctionCallingConfigMode.NONE
-

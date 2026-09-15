@@ -7,6 +7,7 @@ the lab and contain no real employee or company data.
 - `users.json`: 10 mock employees with varied account/MFA states and assigned assets.
 - `service_status.json`: mock shared-service status page.
 - `knowledge_base/`: 11 troubleshooting articles, including one safe prompt-injection fixture.
+- `warranties.json`: 9 mock warranty contracts used only by the team-built `check_warranty` bonus tool.
 
 Students may extend this data when they build a new tool, but they must document
 their contract and add eval cases for the behavior they introduce.

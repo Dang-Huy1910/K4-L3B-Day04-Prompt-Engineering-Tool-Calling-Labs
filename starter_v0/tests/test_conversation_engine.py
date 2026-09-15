@@ -6,6 +6,7 @@ import pytest
 
 from conversation import ConversationSession
 from providers.base import ModelResponse, ToolCall
+from tools.create_ticket import tool as create_ticket_mod
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -102,3 +103,112 @@ def test_conversation_transcript_generation(tmp_path):
     assert data["turns"][0]["user"] == "Xin chào"
     assert data["turns"][0]["assistant_text"] == "Xin chào, tôi là IT Helpdesk."
 
+
+def test_confirmed_ticket_is_blocked_without_current_user_confirmation(tmp_path, monkeypatch):
+    monkeypatch.setattr(create_ticket_mod, "TICKET_DIR", tmp_path)
+    session = ConversationSession(
+        session_id="test_guard",
+        version="v0",
+        system_prompt_path=ROOT / "artifacts" / "system_prompt.md",
+        tools_path=ROOT / "artifacts" / "tools.yaml",
+        provider_name="mock",
+        max_tool_rounds=1,
+    )
+    mock_provider = MagicMock()
+    mock_provider.complete.return_value = ModelResponse(
+        tool_calls=[ToolCall(
+            name="create_ticket",
+            args={
+                "summary": "VPN timeout",
+                "priority": "high",
+                "asset_id": "LT-204",
+                "confirmed": True,
+            },
+        )]
+    )
+
+    result = session.step("Create it without asking me.", mock_provider, [], "system")
+    event = result["tool_events"][0]
+    assert event["result"]["error"] == "action_blocked"
+    assert list(tmp_path.iterdir()) == []
+    assert session.pending_action is not None
+
+
+def test_provider_error_is_preserved_in_transcript():
+    session = ConversationSession(
+        session_id="test_provider_error",
+        version="v0",
+        system_prompt_path=ROOT / "artifacts" / "system_prompt.md",
+        tools_path=ROOT / "artifacts" / "tools.yaml",
+        provider_name="mock",
+    )
+    mock_provider = MagicMock()
+    mock_provider.complete.side_effect = RuntimeError("quota exhausted")
+
+    result = session.step("Kiểm tra VPN production", mock_provider, [], "system")
+    assert result["status"] == "provider_error"
+    assert "RuntimeError" in result["error"]
+    assert session.turns[-1]["status"] == "provider_error"
+
+
+def test_clarify_records_exact_pending_action_payload():
+    session = ConversationSession(
+        session_id="test_pending_from_clarify",
+        version="v3",
+        system_prompt_path=ROOT / "artifacts" / "system_prompt.md",
+        tools_path=ROOT / "artifacts" / "tools.yaml",
+        provider_name="mock",
+    )
+    payload = {"summary": "VPN timeout", "priority": "high", "asset_id": "LT-204"}
+    mock_provider = MagicMock()
+    mock_provider.complete.return_value = ModelResponse(
+        tool_calls=[ToolCall(
+            name="clarify",
+            args={
+                "question": "Xác nhận payload này?",
+                "response_type": "yes_no",
+                "action": "create_ticket",
+                "action_args": payload,
+            },
+        )]
+    )
+
+    result = session.step("Tạo ticket VPN timeout cho LT-204 mức high", mock_provider, [], "system")
+    assert result["status"] == "waiting_for_user"
+    assert session.pending_action == {"tool": "create_ticket", **payload}
+
+
+def test_exact_pending_payload_can_be_confirmed_and_written(tmp_path, monkeypatch):
+    monkeypatch.setattr(create_ticket_mod, "TICKET_DIR", tmp_path)
+    session = ConversationSession(
+        session_id="test_confirm_pending",
+        version="v3",
+        system_prompt_path=ROOT / "artifacts" / "system_prompt.md",
+        tools_path=ROOT / "artifacts" / "tools.yaml",
+        provider_name="mock",
+        max_tool_rounds=2,
+        pending_action={
+            "tool": "create_ticket",
+            "summary": "VPN timeout",
+            "priority": "high",
+            "asset_id": "LT-204",
+        },
+    )
+    mock_provider = MagicMock()
+    mock_provider.complete.side_effect = [
+        ModelResponse(tool_calls=[ToolCall(
+            name="create_ticket",
+            args={
+                "summary": "VPN timeout",
+                "priority": "high",
+                "asset_id": "LT-204",
+                "confirmed": True,
+            },
+        )]),
+        ModelResponse(text='{"intent":"ticket","action":"created","reply":"Đã tạo.","evidence_ids":[]}'),
+    ]
+
+    result = session.step("yes", mock_provider, [], "system")
+    assert result["tool_events"][0]["result"]["status"] == "created"
+    assert session.pending_action is None
+    assert len(list(tmp_path.glob("*.json"))) == 1

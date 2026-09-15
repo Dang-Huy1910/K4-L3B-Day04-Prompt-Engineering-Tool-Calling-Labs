@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from datetime import datetime
 import json
 from pathlib import Path
 import re
 from typing import Any
 
+from action_guard import guard_ticket_call
 from providers.base import Provider, ToolCall
 from tools import TOOL_FUNCTIONS
 from versioning import ArtifactVersion, artifact_version_dict, build_artifact_version
@@ -23,7 +24,13 @@ def json_text(value: Any, *, max_chars: int | None = None) -> str:
     return text
 
 
-def execute_tool_call(call: ToolCall) -> dict[str, Any]:
+def execute_tool_call(
+    call: ToolCall,
+    *,
+    user_text: str = "",
+    pending_action: dict[str, Any] | None = None,
+    conversation_text: str = "",
+) -> dict[str, Any]:
     func = TOOL_FUNCTIONS.get(call.name)
     if not func:
         return {
@@ -31,6 +38,24 @@ def execute_tool_call(call: ToolCall) -> dict[str, Any]:
             "args": call.args,
             "result": {"error": "unknown_tool", "message": f"No local implementation for {call.name}"},
         }
+    if call.name == "create_ticket":
+        allowed, reason = guard_ticket_call(
+            call.args,
+            user_text,
+            pending_action,
+            conversation_text,
+        )
+        if not allowed:
+            return {
+                "tool": call.name,
+                "args": call.args,
+                "result": {
+                    "tool": call.name,
+                    "error": "action_blocked",
+                    "reason": reason,
+                    "message": "Review the current ticket payload and confirm it explicitly before writing.",
+                },
+            }
     try:
         result = func(**call.args)
     except Exception as exc:
@@ -150,13 +175,27 @@ class ConversationSession:
             self.turns.append(turn_record)
             return turn_record
 
+        # The next real user turn resolves or supersedes the prior clarification.
+        # Its content remains available through the recorded conversation history.
+        self.pending_clarification = None
         messages = self.build_messages(user_text, system_prompt)
         working_messages = list(messages)
         rounds: list[dict[str, Any]] = []
         all_tool_events: list[dict[str, Any]] = []
 
         for round_index in range(1, self.max_tool_rounds + 1):
-            response = provider.complete(working_messages, tools, model=self.model, temperature=0.0)
+            try:
+                response = provider.complete(working_messages, tools, model=self.model, temperature=0.0)
+            except Exception as exc:
+                turn_record.update({
+                    "status": "provider_error",
+                    "assistant_text": "Không thể kết nối model provider. Hãy kiểm tra cấu hình hoặc thử lại.",
+                    "error": f"{type(exc).__name__}: {exc}",
+                    "rounds": rounds,
+                    "tool_events": all_tool_events,
+                    "ended_at": now_iso(),
+                })
+                break
             calls = response.tool_calls
             round_record: dict[str, Any] = {
                 "round": round_index,
@@ -181,7 +220,14 @@ class ConversationSession:
             hit_clarification = False
 
             for call in calls:
-                event = execute_tool_call(call)
+                event = execute_tool_call(
+                    call,
+                    user_text=user_text,
+                    pending_action=self.pending_action,
+                    conversation_text="\n".join(
+                        [*(str(turn.get("user") or "") for turn in self.turns), user_text]
+                    ),
+                )
                 round_record["tool_results"].append(event)
                 all_tool_events.append(event)
                 result = event.get("result", {})
@@ -200,11 +246,25 @@ class ConversationSession:
                         elif result.get("status") == "created":
                             # Action completed successfully, clear pending action
                             self.pending_action = None
+                        elif result.get("error") == "action_blocked":
+                            self.pending_action = {
+                                "tool": "create_ticket",
+                                **{
+                                    key: value
+                                    for key, value in call.args.items()
+                                    if key in {"summary", "priority", "asset_id"}
+                                },
+                            }
 
                 # Detect clarification
                 if isinstance(result, dict) and result.get("awaiting_user"):
                     hit_clarification = True
                     self.pending_clarification = result
+                    if result.get("action") == "create_ticket" and isinstance(result.get("action_args"), dict):
+                        self.pending_action = {
+                            "tool": "create_ticket",
+                            **result["action_args"],
+                        }
                     question = result.get("question") or call.args.get("question") or "Bạn bổ sung thêm thông tin nhé."
                     rounds.append(round_record)
                     turn_record.update({
@@ -257,4 +317,3 @@ class ConversationSession:
         data = self.to_transcript_dict()
         path.write_text(json.dumps(data, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
         return path
-

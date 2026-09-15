@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime
 from pathlib import Path
 import sys
 
@@ -26,8 +27,9 @@ def run_scenario(
     system_prompt_path: Path,
     tools_path: Path,
 ) -> Path:
+    run_timestamp = datetime.now().strftime("%Y%m%dT%H%M%S%f")
     session = ConversationSession(
-        session_id=f"live_{name}",
+        session_id=f"live_{name}_{run_timestamp}",
         version=version,
         system_prompt_path=system_prompt_path,
         tools_path=tools_path,
@@ -51,7 +53,7 @@ def run_scenario(
         print(f"Turn {idx} Status: {result.get('status')}")
         print(f"Turn {idx} Assistant: {result.get('assistant_text')[:100]}...")
 
-    out_file = TRANSCRIPTS_DIR / f"{name}.transcript.json"
+    out_file = TRANSCRIPTS_DIR / f"{session.session_id}.transcript.json"
     session.save_transcript(out_file)
     print(f"Saved: {out_file}")
     return out_file
@@ -102,4 +104,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

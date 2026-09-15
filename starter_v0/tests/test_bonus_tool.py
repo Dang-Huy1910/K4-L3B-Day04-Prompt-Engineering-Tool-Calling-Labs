@@ -47,3 +47,23 @@ def test_check_warranty_type_safety():
     assert res["tool"] == "check_warranty"
     assert res["error"] == "invalid_input_type"
 
+
+def test_check_warranty_rejects_invalid_date():
+    res = check_warranty(asset_id="LT-204", as_of_date="banana")
+    assert res["error"] == "invalid_as_of_date"
+
+
+def test_check_warranty_not_started():
+    res = check_warranty(asset_id="LT-204", as_of_date="2020-01-01")
+    assert res["status"] == "not_started"
+    assert res["is_active"] is False
+    assert res["rma_eligible"] is False
+
+
+def test_expired_warranty_disables_coverage_benefits():
+    res = check_warranty(asset_id="LT-204", as_of_date="2030-01-01")
+    assert res["status"] == "expired"
+    assert res["is_active"] is False
+    assert res["on_site_service"] is False
+    assert res["rma_eligible"] is False
+    assert res["accidental_damage"] is False

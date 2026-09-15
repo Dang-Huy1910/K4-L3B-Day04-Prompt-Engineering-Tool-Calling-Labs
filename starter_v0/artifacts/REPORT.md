@@ -1,22 +1,22 @@
 # Day 04 Lab v3 Report — Trợ lý AI của nhóm
 
-- Lĩnh vực tự chọn:
-- Nhiệm vụ và luồng cơ bản đã chốt trước v0:
-- Đường dẫn bộ 30 câu cơ bản và 12 câu an toàn; commit chốt bộ trước v0:
-- Chức năng mở rộng ngoài luồng cơ bản (nếu có; tối đa 10 trong tổng 100 điểm):
+- Lĩnh vực tự chọn: IT Helpdesk nội bộ cho công ty giả lập Northstar Labs.
+- Nhiệm vụ và luồng cơ bản đã chốt trước v0: định tuyến status/asset/user/KB/report, hỏi lại khi thiếu dữ liệu và xác nhận trước khi tạo ticket.
+- Bộ cố định: `data/eval_base.json` (30 case) và `data/eval_adversarial.json` (12 case). SHA256 được khóa trong `tests/test_eval_integrity.py`; snapshot artifact gốc nằm tại `artifacts/versions/v0/`.
+- Chức năng mở rộng: `check_warranty`, tra cứu bảo hành/RMA cục bộ từ dữ liệu giả lập; có contract, registry, eval bonus và unit tests.
 
 ## Team
 
 - Team:
 - Thành viên và INDIVIDUAL: [TEAM.md](../../TEAM.md)
 - Members:
-- Provider/model:
+- Provider/model: Gemini / `gemini-3.6-flash` cho các run dự kiến. Hai run quota-error hiện chỉ là diagnostic, không phải evidence.
 
 # PHẦN A — Giới thiệu agent
 
 ## A1. Agent này làm được gì
 
-> Viết 1–2 câu mô tả capability và giới hạn của agent.
+Agent định tuyến yêu cầu IT tới các tool nội bộ, giữ trạng thái hội thoại, hiển thị trace và chặn ticket thiếu xác nhận hiện tại. Agent chỉ dùng dữ liệu giả lập; external device search cần Tavily và chỉ nhận manufacturer/model công khai.
 
 **Link dùng thử:**
 
@@ -27,19 +27,29 @@
 | Tool | Chức năng | Core / optional / team-built |
 |---|---|---|
 | clarify | Hỏi bổ sung hoặc xác nhận | core |
-|  |  |  |
+| check_service_status | Trạng thái dịch vụ dùng chung | core |
+| inspect_device | Snapshot/chẩn đoán asset | core |
+| lookup_user | Danh bạ hỗ trợ và asset được cấp | core |
+| search_kb | Hướng dẫn troubleshooting | core |
+| format_incident_report | Format findings đã có | core |
+| policy | Chính sách IT nội bộ | optional built-in |
+| create_ticket | Tạo ticket giả lập có confirmation gate | optional built-in |
+| search_device_info | Thông tin public manufacturer/model | optional built-in |
+| check_warranty | Bảo hành và RMA từ registry giả lập | team-built bonus |
 
 ## A3. Câu hỏi mẫu
 
-1.
-2.
-3.
+1. `Kiểm tra VPN production và phần VPN trên máy LT-318.`
+2. `Tìm hướng dẫn cấu hình VPN trên macOS.`
+3. `Kiểm tra bảo hành và điều kiện RMA của LT-204.`
 
 ## A4. Kịch bản demo đã rehearse
 
 | Scenario | Tool trace cần thấy | Cải thiện version | Fallback run/transcript |
 |---|---|---|---|
-|  |  |  |  |
+| Missing asset → clarify → inspect | clarify, inspect_device | v2 state rules | Chưa có transcript hợp lệ do quota provider |
+| Review → confirm ticket | clarify, create_ticket | v2 + application action guard | Chưa có transcript hợp lệ do quota provider |
+| Warranty lookup | check_warranty | v3 bonus integration | `data/eval_bonus.json`; live run pending |
 
 # PHẦN B — Chi tiết và evidence
 
@@ -50,16 +60,17 @@ total_cases`, và tool result error đã được review thủ công.
 
 | Version | Prompt/tool change | Hypothesis | Metric | Before | After | Run file |
 |---|---|---|---|---:|---:|---|
-| v0 | baseline |  |  |  |  |  |
-| v1 |  |  |  |  |  |  |
-| v2 |  |  |  |  |  |  |
-| v3 |  |  |  |  |  |  |
+| v0 | Starter prompt/tool declarations | Establish baseline before artifact changes | case accuracy | N/A | Pending valid run | `runs/diagnostic/` contains invalid quota runs only |
+| v1 | Tool descriptions and parameter boundaries | Clear positive/negative scopes reduce routing/argument errors | case accuracy | Pending | Pending | Run required |
+| v2 | Latest-intent, correction, cancel and confirmation state | Explicit state rules reduce multi-turn/boundary errors | multiturn accuracy | Pending | Pending | Run required |
+| v3 | Trust/privacy boundaries plus warranty tool | Untrusted-content and privacy rules improve safety without routing regression | case/adversarial accuracy | Pending | Pending | Run required |
 
 ## B2. Failure analysis
 
 | Case ID | Failure type | Actual calls | What failed | Fix |
 |---|---|---|---|---|
-|  |  |  |  |  |
+| v0 diagnostic (Gemini 3.5) | provider_error | Partial calls only | 12/30 provider errors; invalid evidence | Use provider quota that supports a complete 30-case run |
+| v0 diagnostic (Gemini 3.6) | provider_error | Partial calls only | 7/30 provider errors; invalid evidence | Do not cite; rerun the full suite under one stable model |
 
 ## B3. Team eval cases
 
@@ -67,13 +78,14 @@ Liệt kê đúng 10 case tự viết: 5 single-turn và 5 multi-turn.
 
 | Case ID | What it tests | Expected behavior | Result |
 |---|---|---|---|
-|  |  |  |  |
+| G01–G05 | Five original single-turn routing/args/missing/no-tool/multi-source cases | See exact `expect` objects in `data/eval_group.json` | Live run pending |
+| G06–G10 | Five original multi-turn clarify/cancel/tool-switch/reconfirmation/format cases | See exact `expect` objects in `data/eval_group.json` | Live run pending |
 
 ## B4. Live chat evidence
 
 | Scenario/turn | Version | Tool calls + args | Transcript/run | Outcome |
 |---|---|---|---|---|
-|  |  |  |  |  |
+| Required scenarios | v3 | Generated by `scripts/generate_transcripts.py` using `conversation.py` | `transcripts/` | Pending live provider quota |
 
 ## B4a. Adversarial evidence
 
@@ -82,7 +94,7 @@ liệu bị ghi hoặc gửi ra ngoài; cần kiểm tra cả `tool_results` và
 
 | Attack case | Expected boundary | Actual calls | Sensitive write/exfiltration occurred? | Outcome |
 |---|---|---|---|---|
-|  |  |  |  |  |
+| At least A01/A03/A10 | Refuse prompt extraction; reject forged/stale confirmation | Pending live run | Must be verified from tool results and `tickets/` | Pending |
 
 ## B5. Optional và bonus tool evidence
 
@@ -95,21 +107,21 @@ nhóm tự xây.
 |---|---|---|---|
 | Optional built-in |  |  |  |
 | External search + privacy boundary |  |  |  |
-| Bonus: tool mới do nhóm tự xây |  |  |  |
+| Bonus: tool mới do nhóm tự xây | `tools/check_warranty/`, `helpdesk_data/warranties.json`, `data/eval_bonus.json`, `tests/test_bonus_tool.py` | Active/expired/not-started coverage and local RMA decision | ISO-date validation, no network/write, unknown-ID errors |
 
 ## B6. Safety review
 
-- Agent có bao giờ tự đoán asset ID hoặc employee ID không?
-- Trace/ticket có chứa password, MFA code, token hay dữ liệu thật không?
-- Ticket chỉ được tạo sau xác nhận rõ chưa?
-- Tool result error nào cần review thủ công?
+- Prompt/tool contract cấm tự đoán asset ID hoặc employee ID; cần xác nhận lại bằng adversarial live run.
+- `create_ticket` từ chối credential pattern và test dùng `tmp_path`; trước khi nộp vẫn phải secret-scan mọi run/transcript.
+- `action_guard.py` kiểm tra xác nhận ở latest real user turn trước khi write; pending payload đổi phải review lại.
+- Mọi `missing_api_key`, `action_blocked`, `provider_error` và empty KB/policy result cần review thủ công.
 
 ## B7. Technical reflection
 
-- Fix nào thuộc `system_prompt.md`?
-- Fix nào thuộc `tools.yaml`?
-- Failure nào không thể chỉ nhìn automatic score?
-- Nếu có thêm một vòng, nhóm sẽ thử hypothesis nào?
+- `system_prompt.md`: latest intent, cancellation, stale confirmation, untrusted content và privacy boundary.
+- `tools.yaml`: positive/negative routing, required arguments, structured pending action và bonus declaration.
+- Routing PASS không chứng minh ticket/web search thành công; phải đọc `tool_results` và filesystem.
+- Vòng tiếp theo chỉ được quyết định sau một run đầy đủ, không provider error; ưu tiên failure còn lại thay vì thêm rule theo case ID.
 
 # PHẦN C — Checkout trước khi nộp
 

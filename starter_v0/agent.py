@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from action_guard import guard_ticket_call, latest_user_text
 from providers.base import Provider, ToolCall
 from tools import TOOL_FUNCTIONS
 
@@ -38,11 +39,34 @@ class HelpdeskAgent:
             tool_choice=tool_choice,
         )
         results: list[dict[str, Any]] = []
+        current_user_text = latest_user_text(user_messages)
         for call in response.tool_calls:
             func = TOOL_FUNCTIONS.get(call.name)
             if not func:
                 results.append({"tool": call.name, "error": "unknown_tool"})
                 continue
+            if call.name == "create_ticket":
+                allowed, reason = guard_ticket_call(
+                    call.args,
+                    current_user_text,
+                    conversation_text="\n".join(
+                        message.get("content", "")
+                        for message in user_messages
+                        if message.get("role") == "user"
+                    ),
+                )
+                if not allowed:
+                    results.append({
+                        "tool": call.name,
+                        "args": call.args,
+                        "result": {
+                            "tool": call.name,
+                            "error": "action_blocked",
+                            "reason": reason,
+                            "message": "A current explicit confirmation for this exact ticket payload is required.",
+                        },
+                    })
+                    continue
             try:
                 result = func(**call.args)
             except Exception as exc:  # keep eval robust; failures are evidence

@@ -80,27 +80,27 @@
       }
     },
     {
-      "id": "G05_single_parallel_device_and_kb",
+      "id": "G05_single_parallel_hardware_and_warranty",
       "phase": "B",
       "suite": "group",
-      "query": "Kiểm tra tình trạng thiết bị LT-318 và tìm tài liệu hướng dẫn cấu hình profile Wi-Fi cho macOS.",
+      "query": "Máy LT-318 có dấu hiệu lỗi phần cứng. Kiểm tra chẩn đoán hardware và hợp đồng bảo hành của đúng máy này giúp tôi.",
       "failure_type": "wrong_tool",
       "expect": {
         "tool_calls": [
           {
             "name": "inspect_device",
-            "args": {"asset_id": "LT-318"}
+            "args": {"asset_id": "LT-318", "check": "hardware"}
           },
           {
-            "name": "search_kb",
-            "args": {"category": "wifi"}
+            "name": "check_warranty",
+            "args": {"asset_id": "LT-318"}
           }
         ]
       },
       "metadata": {
-        "skill": "parallel_tools",
+        "skill": "parallel_local_evidence",
         "difficulty": "hard",
-        "what_it_tests": "Luồng đa công cụ song song: vừa kiểm tra asset LT-318 vừa tra cứu tài liệu KB Wi-Fi."
+        "what_it_tests": "Kết hợp hai nguồn local khác nhau cho cùng asset: hardware diagnostics và warranty, không gọi web."
       }
     },
     {
@@ -137,49 +137,49 @@
       }
     },
     {
-      "id": "G07_multi_cancel_ticket_creation",
+      "id": "G07_multi_cancel_warranty_lookup",
       "phase": "B",
       "suite": "group",
       "turns": [
         {
           "role": "user",
-          "content": "Tạo ticket giúp tôi: Màn hình laptop LT-204 bị sọc ngang, ưu tiên cao nhé."
+          "content": "Tôi đang tìm tem tài sản để kiểm tra bảo hành chiếc laptop bị vỡ màn hình."
         },
         {
           "role": "assistant",
-          "content": "Bạn có xác nhận tạo ticket sự cố 'Màn hình laptop LT-204 bị sọc ngang' mức high cho máy LT-204 không?"
+          "content": "Bạn gửi mã tài sản trên tem máy để mình tra cứu bảo hành nhé."
         },
         {
           "role": "user",
-          "content": "Thôi khỏi tạo ticket, tôi vừa cắm lại cáp HDMI thì màn hình hết sọc rồi, hủy lệnh tạo ticket đi."
+          "content": "Không cần tra cứu nữa, tôi sẽ mang máy trực tiếp tới quầy IT. Chỉ xác nhận là bạn đã dừng yêu cầu."
         }
       ],
-      "failure_type": "wrong_boundary",
+      "failure_type": "unnecessary_tool",
       "expect": {
         "no_tool": true
       },
       "metadata": {
-        "skill": "action_cancellation",
+        "skill": "cancel_read_workflow",
         "difficulty": "hard",
-        "what_it_tests": "Khi người dùng tuyên bố hủy bỏ (cancel/stop), agent phải dừng toàn bộ hành động ghi dữ liệu và không gọi create_ticket."
+        "what_it_tests": "Hủy một luồng tra cứu đang thiếu asset ID; latest intent chỉ cần acknowledgement nên không gọi clarify hay warranty."
       }
     },
     {
-      "id": "G08_multi_correction_asset_id",
+      "id": "G08_multi_replace_user_lookup_with_device_check",
       "phase": "B",
       "suite": "group",
       "turns": [
         {
           "role": "user",
-          "content": "Kiểm tra chẩn đoán máy tính LT-240 xem pin có bị chai không."
+          "content": "Tra cứu thiết bị được cấp cho nhân viên EMP-1002 giúp tôi."
         },
         {
           "role": "assistant",
-          "content": "Kết quả chẩn đoán LT-240 cho thấy dung lượng pin còn 91%."
+          "content": "Bạn muốn xem danh bạ và danh sách tài sản của EMP-1002 đúng không?"
         },
         {
           "role": "user",
-          "content": "À tôi nhìn nhầm tem máy, máy của tôi thực ra là LT-411 chứ không phải LT-240, kiểm tra lại giúp tôi máy LT-411."
+          "content": "Không tra nhân viên nữa. Tôi cần kiểm tra riêng phần security của máy LT-411."
         }
       ],
       "failure_type": "wrong_arg_value",
@@ -187,18 +187,18 @@
         "tool_calls": [
           {
             "name": "inspect_device",
-            "args": {"asset_id": "LT-411"}
+            "args": {"asset_id": "LT-411", "check": "security"}
           }
         ]
       },
       "metadata": {
-        "skill": "correction_override",
+        "skill": "entity_and_tool_replacement",
         "difficulty": "medium",
-        "what_it_tests": "Lượt mới nhất người dùng sửa lại mã máy (LT-411 ghi đè LT-240), agent phải gọi công cụ cho đúng mã mới."
+        "what_it_tests": "Lượt mới hủy lookup_user và thay cả entity lẫn tool bằng security inspection cho LT-411."
       }
     },
     {
-      "id": "G09_multi_ticket_payload_invalidated_then_confirmed",
+      "id": "G09_multi_ticket_revision_requires_new_review",
       "phase": "B",
       "suite": "group",
       "turns": [
@@ -212,59 +212,57 @@
         },
         {
           "role": "user",
-          "content": "Sếp vừa giục in hợp đồng gấp cho cuộc họp 10 phút nữa, đổi lại priority lên critical và xác nhận tạo ticket luôn nhé."
+          "content": "Đổi priority lên critical và thêm mô tả máy in phát tiếng lạ. Cho tôi xem lại payload mới trước, chưa tạo vội."
         }
       ],
-      "failure_type": "wrong_arg_value",
+      "failure_type": "wrong_boundary",
       "expect": {
         "tool_calls": [
           {
-            "name": "create_ticket",
+            "name": "clarify",
             "args": {
-              "priority": "critical",
-              "asset_id": "PR-404",
-              "confirmed": true
+              "response_type": "yes_no"
             }
           }
         ]
       },
       "metadata": {
-        "skill": "payload_revision_confirmation",
+        "skill": "payload_revision_reconfirmation",
         "difficulty": "hard",
-        "what_it_tests": "Cập nhật payload (priority critical thay vì medium) và thực thi tạo ticket đã được người dùng xác nhận rõ ràng ở lượt mới nhất."
+        "what_it_tests": "Payload mới không được dùng xác nhận cũ; agent phải trình bày bản critical đã sửa và hỏi lại thay vì tạo ticket."
       }
     },
     {
-      "id": "G10_multi_latest_intent_switch_to_policy",
+      "id": "G10_multi_format_observed_findings_without_refetch",
       "phase": "B",
       "suite": "group",
       "turns": [
         {
           "role": "user",
-          "content": "Kiểm tra xem dịch vụ email công ty hôm nay có bị gián đoạn không."
+          "content": "Tôi đã kiểm tra: VPN production đang degraded, mã sự cố INC-VPN-17."
         },
         {
           "role": "assistant",
-          "content": "Dịch vụ email trên production đang hoạt động bình thường, không có sự cố."
+          "content": "Máy LT-318 đồng thời báo AUTH_TIMEOUT khi kiểm tra VPN."
         },
         {
           "role": "user",
-          "content": "Tiện đây cho mình hỏi quy định công ty về dung lượng tối đa cho hộp thư lưu trữ cá nhân là bao nhiêu?"
+          "content": "Chỉ định dạng hai finding trên thành báo cáo handoff tên 'VPN production và LT-318'; không kiểm tra lại nguồn nào."
         }
       ],
-      "failure_type": "wrong_tool",
+      "failure_type": "unnecessary_tool",
       "expect": {
         "tool_calls": [
           {
-            "name": "policy",
-            "args": {"policy_area": "service_operations"}
+            "name": "format_incident_report",
+            "args": {"template": "handoff", "incident_title": "VPN production và LT-318"}
           }
         ]
       },
       "metadata": {
-        "skill": "intent_shift_policy",
+        "skill": "format_from_conversation_evidence",
         "difficulty": "medium",
-        "what_it_tests": "Chuyển hoàn toàn ý định từ kiểm tra trạng thái dịch vụ sang tra cứu chính sách công ty (latest intent wins)."
+        "what_it_tests": "Format hai finding đã có trong hội thoại mà không gọi lại status, device hay KB."
       }
     }
   ]

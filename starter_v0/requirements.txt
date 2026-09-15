@@ -6,3 +6,6 @@ google-genai>=0.8.0
 PyYAML>=6.0
 # Optional external device search:
 requests>=2.31.0
+# Local UI and reproducible verification:
+streamlit>=1.40.0
+pytest>=8.0.0

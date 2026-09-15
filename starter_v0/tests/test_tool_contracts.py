@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 import pytest
 
@@ -14,6 +15,46 @@ from tools.lookup_user.tool import lookup_user
 from tools.policy.tool import search_company_policy
 from tools.search_device_info.tool import search_device_info
 from tools.search_kb.tool import search_kb
+from tools import TOOL_FUNCTIONS, load_tool_declarations
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_registry_and_declarations_match_exactly():
+    declarations = load_tool_declarations(ROOT / "artifacts" / "tools.yaml")
+    declared_names = [item["name"] for item in declarations]
+    assert len(declared_names) == len(set(declared_names))
+    assert set(declared_names) == set(TOOL_FUNCTIONS)
+
+
+def test_versioned_tool_declarations_are_implemented():
+    implemented = set(TOOL_FUNCTIONS)
+    for version in ("v0", "v1", "v2", "v3"):
+        path = ROOT / "artifacts" / "versions" / version / "tools.yaml"
+        declared = {item["name"] for item in load_tool_declarations(path)}
+        assert declared <= implemented
+
+
+def test_v3_snapshot_matches_canonical_artifacts():
+    artifact_dir = ROOT / "artifacts"
+    snapshot_dir = artifact_dir / "versions" / "v3"
+    assert (snapshot_dir / "system_prompt.md").read_bytes() == (artifact_dir / "system_prompt.md").read_bytes()
+    assert (snapshot_dir / "tools.yaml").read_bytes() == (artifact_dir / "tools.yaml").read_bytes()
+
+
+def test_every_tool_document_has_contract_frontmatter():
+    import yaml
+
+    for tool_name in TOOL_FUNCTIONS:
+        document = (ROOT / "tools" / tool_name / "TOOL.md").read_text(encoding="utf-8")
+        assert document.startswith("---\n"), f"{tool_name}/TOOL.md is missing YAML frontmatter"
+        _, frontmatter, _ = document.split("---", 2)
+        metadata = yaml.safe_load(frontmatter)
+        assert metadata["name"] == tool_name
+        assert "inputs" in metadata
+        assert "outputs" in metadata
+        assert "side_effect" in metadata
 
 
 def test_clarify_contract():

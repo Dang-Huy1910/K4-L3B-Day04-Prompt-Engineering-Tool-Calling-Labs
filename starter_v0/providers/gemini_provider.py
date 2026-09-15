@@ -8,6 +8,17 @@ from typing import Any
 from providers.base import ModelResponse, ToolCall
 
 
+def _is_retryable_provider_error(exc: Exception) -> bool:
+    message = str(exc)
+    lowered = message.casefold()
+    if "perday" in lowered or "requests per day" in lowered:
+        return False
+    return any(
+        marker in message
+        for marker in ("503", "429", "UNAVAILABLE", "RESOURCE_EXHAUSTED", "500", "InternalServerError")
+    )
+
+
 def _to_gemini_declarations(tools: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
     declarations: list[dict[str, Any]] = []
     for item in tools or []:
@@ -138,7 +149,7 @@ class GeminiProvider:
 
         last_exc: Exception | None = None
         resp = None
-        for attempt in range(5):
+        for attempt in range(3):
             try:
                 resp = client.models.generate_content(
                     model=target_model,
@@ -148,8 +159,7 @@ class GeminiProvider:
                 break
             except Exception as exc:
                 last_exc = exc
-                err_str = str(exc)
-                if any(code in err_str for code in ["503", "429", "UNAVAILABLE", "RESOURCE_EXHAUSTED", "500", "InternalServerError"]):
+                if _is_retryable_provider_error(exc):
                     time.sleep(2 ** attempt + 1)
                     continue
                 raise

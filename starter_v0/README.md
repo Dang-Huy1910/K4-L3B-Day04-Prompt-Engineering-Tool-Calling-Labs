@@ -8,21 +8,21 @@ Hướng dẫn chi tiết cài đặt, cấu hình, kiểm thử tự động, c
 cd starter_v0
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt pytest streamlit
+pip install -r requirements.txt
 ```
 
 Cấu hình API Key trong file `starter_v0/.env` (tuyệt đối không commit file này):
 
 ```env
 # Chọn một trong các provider:
-OPENROUTER_API_KEY=your_key_here
+OPENROUTER_API_KEY=
 # Hoặc:
-# GEMINI_API_KEY=your_key_here
-# OPENAI_API_KEY=your_key_here
-# ANTHROPIC_API_KEY=your_key_here
+# GEMINI_API_KEY=
+# OPENAI_API_KEY=
+# ANTHROPIC_API_KEY=
 
 # Tuỳ chọn cho tra cứu web ngoài (Tavily):
-# TAVILY_API_KEY=your_tavily_key
+# TAVILY_API_KEY=
 ```
 
 ## 2. Kiểm tra kết nối (Preflight)
@@ -40,7 +40,7 @@ Kiểm tra khả năng gọi công cụ có cấu trúc trước khi chạy eval
 Bộ kiểm thử độc lập không phụ thuộc network, không gây side-effect (mock Tavily, tmp_path cho ticket, SHA256 integrity cố định):
 
 ```bash
-.venv/bin/python -m compileall agent.py chat.py app.py providers tools scripts tests conversation.py
+.venv/bin/python -m compileall agent.py chat.py app.py action_guard.py conversation.py providers tools scripts tests
 .venv/bin/pytest tests -v
 ```
 
@@ -50,28 +50,28 @@ Tất cả lệnh chạy đều chốt tham số `--provider` và `--model` nh�
 
 ```bash
 # 1. Base Evaluation (v0 - baseline nguyên bản)
-.venv/bin/python run_eval.py --provider gemini --model gemini-3.6-flash --version v0 --suite base --eval-cases data/eval_base.json
+.venv/bin/python run_eval.py --provider gemini --model gemini-3.6-flash --version v0 --suite base --eval-cases data/eval_base.json --system-prompt artifacts/versions/v0/system_prompt.md --tools artifacts/versions/v0/tools.yaml
 
 # 2. Base Evaluation (v1 - cải tiến tool declaration & argument contract)
-.venv/bin/python run_eval.py --provider gemini --model gemini-3.6-flash --version v1 --suite base --eval-cases data/eval_base.json
+.venv/bin/python run_eval.py --provider gemini --model gemini-3.6-flash --version v1 --suite base --eval-cases data/eval_base.json --system-prompt artifacts/versions/v1/system_prompt.md --tools artifacts/versions/v1/tools.yaml
 
 # 3. Base Evaluation (v2 - cải tiến multi-turn, disambiguation & confirmation)
-.venv/bin/python run_eval.py --provider gemini --model gemini-3.6-flash --version v2 --suite base --eval-cases data/eval_base.json
+.venv/bin/python run_eval.py --provider gemini --model gemini-3.6-flash --version v2 --suite base --eval-cases data/eval_base.json --system-prompt artifacts/versions/v2/system_prompt.md --tools artifacts/versions/v2/tools.yaml
 
 # 4. Base Evaluation (v3 - cải tiến safety, trust boundaries & trace tuning)
-.venv/bin/python run_eval.py --provider gemini --model gemini-3.6-flash --version v3 --suite base --eval-cases data/eval_base.json
+.venv/bin/python run_eval.py --provider gemini --model gemini-3.6-flash --version v3 --suite base --eval-cases data/eval_base.json --system-prompt artifacts/versions/v3/system_prompt.md --tools artifacts/versions/v3/tools.yaml
 
 # 5. Group Evaluation (10 case nhóm: 5 single-turn + 5 multi-turn)
-.venv/bin/python run_eval.py --provider gemini --model gemini-3.6-flash --version v3 --suite group --eval-cases data/eval_group.json
+.venv/bin/python run_eval.py --provider gemini --model gemini-3.6-flash --version v3 --suite group --eval-cases data/eval_group.json --system-prompt artifacts/versions/v3/system_prompt.md --tools artifacts/versions/v3/tools.yaml
 
 # 6. Adversarial Evaluation (12 attack cases về prompt injection, role spoof, data exfiltration)
-.venv/bin/python run_eval.py --provider gemini --model gemini-3.6-flash --version v3 --suite adversarial --eval-cases data/eval_adversarial.json
+.venv/bin/python run_eval.py --provider gemini --model gemini-3.6-flash --version v3 --suite adversarial --eval-cases data/eval_adversarial.json --system-prompt artifacts/versions/v3/system_prompt.md --tools artifacts/versions/v3/tools.yaml
 
 # 7. Helpdesk Extension (10 cases policy, confirmed tickets, external search)
-.venv/bin/python run_eval.py --provider gemini --model gemini-3.6-flash --version v3 --suite extension --eval-cases data/eval_helpdesk_extension.json
+.venv/bin/python run_eval.py --provider gemini --model gemini-3.6-flash --version v3 --suite extension --eval-cases data/eval_helpdesk_extension.json --system-prompt artifacts/versions/v3/system_prompt.md --tools artifacts/versions/v3/tools.yaml
 
 # 8. Bonus Tool Evaluation (5 cases cho công cụ check_warranty)
-.venv/bin/python run_eval.py --provider gemini --model gemini-3.6-flash --version v3 --suite bonus --eval-cases data/eval_bonus.json
+.venv/bin/python run_eval.py --provider gemini --model gemini-3.6-flash --version v3 --suite bonus --eval-cases data/eval_bonus.json --system-prompt artifacts/versions/v3/system_prompt.md --tools artifacts/versions/v3/tools.yaml
 ```
 
 ## 5. Phân tích kết quả chạy (Run Analysis)
@@ -114,3 +114,6 @@ Sinh tự động 5 kịch bản tương tác thực tế với mô hình theo �
 - `helpdesk_data/`: Dữ liệu giả lập (`assets.json`, `users.json`, `service_status.json`, `warranties.json`, `knowledge_base/`).
 - `tools/check_warranty/`: Bonus tool mới ngoài luồng cơ bản với hợp đồng và tài liệu đầy đủ.
 
+## 9. Trạng thái evidence
+
+Các run trong `runs/diagnostic/` chỉ ghi lại lỗi quota và **không phải evidence hợp lệ**. Chỉ đưa một run vào `version_log.csv` và `REPORT.md` khi chính file đó có `provider_error_cases == 0` và `measured_cases == total_cases`. Với extension web, routing PASS không chứng minh Tavily đã chạy thành công; phải kiểm tra `tool_results` và cấu hình `TAVILY_API_KEY` nếu cần evidence live.
